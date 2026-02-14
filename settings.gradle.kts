@@ -22,5 +22,6 @@ plugins {
 rootProject.name = "Stub"
 
 include(":samples")
+include(":stub:compiler-plugin")
 include(":stub:dsl")
 include(":stub:runtime")

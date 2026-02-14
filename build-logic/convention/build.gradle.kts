@@ -25,5 +25,10 @@ gradlePlugin {
             id = "org.yarokovisty.stub.androidLibrary"
             implementationClass = "org.yarokovisty.stub.buildlogic.convention.AndroidLibraryConventionPlugin"
         }
+
+        create("stubCompilerPlugin") {
+            id = "org.yarokovisty.stub.compiler"
+            implementationClass = "org.yarokovisty.stub.buildlogic.convention.StubCompilerConventionPlugin"
+        }
     }
 }
