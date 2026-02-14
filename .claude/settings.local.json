@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd Detekt static analysis configuration\n\nConfigure Detekt plugin with formatting rules for all subprojects,\ntargeting common, JVM, and Android source sets.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd stub DSL/runtime modules, samples, and build-logic convention plugins\n\nIntroduce multi-module project structure with stub:dsl, stub:runtime,\nand samples modules. Add build-logic convention plugins for KMP and\nAndroid library configuration. Include Detekt config and example code.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push:*)",
+      "Bash(.yaml)",
+      "Bash(.md)",
+      "Bash(.txt)",
+      "Bash(.xml \")",
+      "Bash(git -C \"C:/YarokovistY/KMP/Stub\" diff HEAD -- build.gradle.kts gradle/libs.versions.toml)",
+      "Bash(./gradlew.bat:*)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:medium.com)",
+      "WebFetch(domain:blog.bnorm.dev)"
+    ]
+  }
+}
