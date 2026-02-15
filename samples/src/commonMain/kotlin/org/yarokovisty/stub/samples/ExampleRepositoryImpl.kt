@@ -12,4 +12,7 @@ class ExampleRepositoryImpl(
 
     override fun getData(id: Int, name: String): ExampleData =
         dataSource.getData(id, name)
+
+    override suspend fun getData(): ExampleData =
+        dataSource.getData()
 }

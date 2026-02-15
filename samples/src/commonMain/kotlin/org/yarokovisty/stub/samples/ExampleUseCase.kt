@@ -12,4 +12,7 @@ class ExampleUseCase(
 
     fun getData(id: Int, name: String): ExampleData =
         repository.getData(id, name)
+
+    suspend fun getData(): ExampleData =
+        repository.getData()
 }

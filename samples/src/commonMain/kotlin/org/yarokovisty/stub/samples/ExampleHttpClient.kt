@@ -12,4 +12,7 @@ class ExampleHttpClient {
 
     fun getData(id: Int, name: String): ExampleData =
         ExampleData(id, name)
+
+    suspend fun getData(): ExampleData =
+        ExampleData(-1, "data")
 }

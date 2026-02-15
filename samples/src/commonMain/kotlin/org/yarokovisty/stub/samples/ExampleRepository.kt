@@ -7,4 +7,6 @@ interface ExampleRepository {
     fun getInt(): Int
 
     fun getData(id: Int, name: String): ExampleData
+
+    suspend fun getData(): ExampleData
 }

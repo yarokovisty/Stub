@@ -325,6 +325,7 @@ class CreateStubTransformer(
             returnType = function.returnType
             visibility = DescriptorVisibilities.PUBLIC
             modality = Modality.OPEN
+             isSuspend = function.isSuspend
             origin = IrDeclarationOrigin.DEFINED
         }.apply {
             dispatchReceiverParameter = stubClass.thisReceiver?.copyTo(this)

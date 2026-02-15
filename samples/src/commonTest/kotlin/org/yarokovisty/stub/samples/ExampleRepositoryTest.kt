@@ -1,5 +1,7 @@
 package org.yarokovisty.stub.samples
 
+import kotlinx.coroutines.test.runTest
+import org.yarokovisty.stub.dsl.coEvery
 import org.yarokovisty.stub.dsl.every
 import org.yarokovisty.stub.dsl.stub
 import org.yarokovisty.stub.dsl.verify
@@ -51,5 +53,14 @@ class ExampleRepositoryTest {
         val dataResult = repository.getData(0, "name")
 
         assertNotEquals(expected, dataResult)
+    }
+
+    @Test
+    fun returnsConfiguredValueForSuspendFunction() = runTest {
+        coEvery { dataSource.getData() } answers ExampleData(0, "value")
+
+        val result = repository.getData()
+
+        assertEquals(ExampleData(0, "value"), result)
     }
 }

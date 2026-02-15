@@ -12,4 +12,7 @@ class ExampleDataSource(
 
     fun getData(id: Int, name: String): ExampleData =
         httpClient.getData(id, name)
+
+    suspend fun getData(): ExampleData =
+        httpClient.getData()
 }
