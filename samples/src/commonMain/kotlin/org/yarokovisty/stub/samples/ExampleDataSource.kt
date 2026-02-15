@@ -4,6 +4,12 @@ class ExampleDataSource(
     private val httpClient: ExampleHttpClient,
 ) {
 
-    fun get(): String =
-        httpClient.get()
+    fun getString(): String =
+        httpClient.getString()
+
+    fun getInt(): Int =
+        httpClient.getInt()
+
+    fun getData(id: Int, name: String): ExampleData =
+        httpClient.getData(id, name)
 }

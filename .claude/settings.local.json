@@ -14,7 +14,26 @@
       "WebSearch",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:medium.com)",
-      "WebFetch(domain:blog.bnorm.dev)"
+      "WebFetch(domain:blog.bnorm.dev)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:www.revenuecat.com)",
+      "Bash(curl:*)",
+      "Bash(python:*)",
+      "Bash(gh api:*)",
+      "Bash(findstr:*)",
+      "Bash(where:*)",
+      "WebFetch(domain:kt.academy)",
+      "WebFetch(domain:slack-chats.kotlinlang.org)",
+      "WebFetch(domain:discuss.kotlinlang.org)",
+      "WebFetch(domain:hackernoon.com)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd IR compiler plugin for createStub\\(\\) on all platforms\n\nReplace expect/actual platform split with a Kotlin IR compiler plugin\nthat generates stub implementations at compile time. The plugin\nintercepts stub<T>\\(\\) calls, generates synthetic classes implementing\nthe target interface, and delegates all methods to StubDelegate.handle\\(\\).\n\n- New module: stub/compiler-plugin with IR generation extension\n- New convention plugin: StubCompilerConventionPlugin\n- Remove platform-specific Stub.jvm.kt, Stub.android.kt, Stub.native.kt\n- Convert createStub\\(\\) from expect/actual to regular function with\n  error fallback \\(never reached when plugin is applied\\)\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "WebFetch(domain:api.github.com)",
+      "Bash(unzip:*)",
+      "Bash(javap:*)",
+      "Bash(\"C:/Program Files/Java/jdk-21/bin/javap.exe\":*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: support final class mocking via FIR status transformer\n\nAdd FirStatusTransformerExtension to open all classes, functions, and\nproperties at the FIR level, enabling the IR plugin to generate stub\nsubclasses for final classes. For non-nullable constructor parameters,\nrecursively construct default instances instead of passing null.\n\n- New: StubFirStatusTransformer opens final declarations at FIR phase\n- New: StubFirExtensionRegistrar registers the FIR extension\n- New: collectOverridableFunctions\\(\\) for class method collection\n- New: defaultIrValue\\(\\)/constructDefaultInstance\\(\\) for constructor args\n- Modified: generateStubClass\\(\\) branches on interface vs class\n- Modified: addConstructor\\(\\) delegates to target class constructor\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit:*)",
+      "Bash(git show:*)"
     ]
   }
 }

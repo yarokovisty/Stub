@@ -9,15 +9,15 @@ class StubCall<T>(
     private val methodName: String,
 ) {
 
-    infix fun returns(value: T) {
+    infix fun answers(value: T) {
         delegate.setAnswer(methodName, Answer.Value(value))
-    }
-
-    infix fun throws(exception: Throwable) {
-        delegate.setAnswer(methodName, Answer.Throwing(exception))
     }
 
     infix fun answers(block: (MethodCall) -> T) {
         delegate.setAnswer(methodName, Answer.Lambda(block))
+    }
+
+    infix fun throws(exception: Throwable) {
+        delegate.setAnswer(methodName, Answer.Throwing(exception))
     }
 }
