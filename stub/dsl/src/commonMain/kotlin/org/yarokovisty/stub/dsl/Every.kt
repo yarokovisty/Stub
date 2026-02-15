@@ -12,8 +12,8 @@ fun <T> every(block: () -> T): StubCall<T> {
     } catch (ignored: ClassCastException) {
         // Expected for primitive return types during recording
     }
-    val (delegate, call) = MockRecorder.stopRecording()
-    return StubCall(delegate, call.methodName)
+    val recorded = MockRecorder.stopRecording()
+    return StubCall(recorded.delegate, recorded.call.methodName, recorded.matchers)
 }
 
 @Suppress("TooGenericExceptionCaught")
@@ -26,6 +26,6 @@ suspend fun <T> coEvery(block: suspend () -> T): StubCall<T> {
     } catch (ignored: ClassCastException) {
         // Expected for primitive return types during recording
     }
-    val (delegate, call) = MockRecorder.stopRecording()
-    return StubCall(delegate, call.methodName)
+    val recorded = MockRecorder.stopRecording()
+    return StubCall(recorded.delegate, recorded.call.methodName, recorded.matchers)
 }

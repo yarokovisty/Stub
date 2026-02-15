@@ -12,9 +12,9 @@ fun verify(block: () -> Unit) {
     } catch (ignored: ClassCastException) {
         // Expected for primitive return types during recording
     }
-    val (delegate, call) = MockRecorder.stopRecording()
-    check(delegate.wasCalled(call.methodName)) {
-        "Expected call to '${call.methodName}' was not recorded."
+    val recorded = MockRecorder.stopRecording()
+    check(recorded.delegate.wasCalled(recorded.call.methodName)) {
+        "Expected call to '${recorded.call.methodName}' was not recorded."
     }
 }
 
@@ -28,8 +28,8 @@ suspend fun coVerify(block: suspend () -> Unit) {
     } catch (ignored: ClassCastException) {
         // Expected for primitive return types during recording
     }
-    val (delegate, call) = MockRecorder.stopRecording()
-    check(delegate.wasCalled(call.methodName)) {
-        "Expected call to '${call.methodName}' was not recorded."
+    val recorded = MockRecorder.stopRecording()
+    check(recorded.delegate.wasCalled(recorded.call.methodName)) {
+        "Expected call to '${recorded.call.methodName}' was not recorded."
     }
 }

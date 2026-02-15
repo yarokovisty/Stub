@@ -2,7 +2,13 @@ package org.yarokovisty.stub.runtime
 
 class StubDelegate {
 
-    private val answers = mutableMapOf<String, Answer<*>>()
+    private data class AnswerEntry(
+        val methodName: String,
+        val matchers: List<Matcher<*>>,
+        val answer: Answer<*>,
+    )
+
+    private val entries = mutableListOf<AnswerEntry>()
     private val callLog = mutableListOf<MethodCall>()
 
     @Suppress("UNCHECKED_CAST")
@@ -15,14 +21,14 @@ class StubDelegate {
         }
 
         callLog.add(call)
-        val answer = answers[methodName]
+        val answer = findAnswer(methodName, args)
             ?: throw MissingAnswerException(methodName)
 
         return executeAnswer(answer, call) as T
     }
 
-    fun setAnswer(methodName: String, answer: Answer<*>) {
-        answers[methodName] = answer
+    fun setAnswer(methodName: String, matchers: List<Matcher<*>>, answer: Answer<*>) {
+        entries.add(AnswerEntry(methodName, matchers, answer))
     }
 
     fun wasCalled(methodName: String): Boolean =
@@ -30,6 +36,18 @@ class StubDelegate {
 
     fun callCount(methodName: String): Int =
         callLog.count { it.methodName == methodName }
+
+    private fun findAnswer(methodName: String, args: List<Any?>): Answer<*>? =
+        entries.lastOrNull { entry ->
+            entry.methodName == methodName && matchesArgs(entry.matchers, args)
+        }?.answer
+
+    private fun matchesArgs(matchers: List<Matcher<*>>, args: List<Any?>): Boolean =
+        when {
+            matchers.isEmpty() && args.isEmpty() -> true
+            matchers.size != args.size -> false
+            else -> matchers.zip(args).all { (matcher, arg) -> matcher.matches(arg) }
+        }
 
     @Suppress("UNCHECKED_CAST")
     private fun executeAnswer(answer: Answer<*>, call: MethodCall): Any? =

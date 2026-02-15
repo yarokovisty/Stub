@@ -16,12 +16,26 @@ object MockRecorder {
         lastCall = Pair(delegate, call)
     }
 
-    fun stopRecording(): Pair<StubDelegate, MethodCall> {
+    fun stopRecording(): RecordedCall {
         recording = false
         val captured = lastCall
         lastCall = null
-        return checkNotNull(captured) {
+        val (delegate, call) = checkNotNull(captured) {
             "No stub method was called inside every { } block."
         }
+        val matchers = resolveMatchers(call)
+        return RecordedCall(delegate, call, matchers)
+    }
+
+    private fun resolveMatchers(call: MethodCall): List<Matcher<*>> {
+        val pending = MatcherStack.drain()
+        if (pending.isEmpty()) {
+            return call.args.map { Matcher.Eq(it) }
+        }
+        require(pending.size == call.args.size) {
+            "Matcher count (${pending.size}) does not match argument count (${call.args.size}). " +
+                "When using matchers, all arguments must use matchers."
+        }
+        return pending
     }
 }

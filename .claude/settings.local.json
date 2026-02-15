@@ -33,7 +33,13 @@
       "Bash(\"C:/Program Files/Java/jdk-21/bin/javap.exe\":*)",
       "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: support final class mocking via FIR status transformer\n\nAdd FirStatusTransformerExtension to open all classes, functions, and\nproperties at the FIR level, enabling the IR plugin to generate stub\nsubclasses for final classes. For non-nullable constructor parameters,\nrecursively construct default instances instead of passing null.\n\n- New: StubFirStatusTransformer opens final declarations at FIR phase\n- New: StubFirExtensionRegistrar registers the FIR extension\n- New: collectOverridableFunctions\\(\\) for class method collection\n- New: defaultIrValue\\(\\)/constructDefaultInstance\\(\\) for constructor args\n- Modified: generateStubClass\\(\\) branches on interface vs class\n- Modified: addConstructor\\(\\) delegates to target class constructor\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git commit:*)",
-      "Bash(git show:*)"
+      "Bash(git show:*)",
+      "Bash(C:/YarokovistY/KMP/Stub/gradlew.bat :samples:jvmTest)",
+      "Bash(C:/YarokovistY/KMP/Stub/gradlew.bat :samples:jvmTest --console=plain)",
+      "Bash(C:/YarokovistY/KMP/Stub/gradlew.bat :samples:allTests --console=plain)",
+      "Bash(C:/YarokovistY/KMP/Stub/gradlew.bat detekt --console=plain)",
+      "Bash(C:/YarokovistY/KMP/Stub/gradlew.bat :stub:runtime:detekt :stub:dsl:detekt :samples:detekt --console=plain)",
+      "Bash(C:/YarokovistY/KMP/Stub/gradlew.bat :stub:runtime:detekt --console=plain)"
     ]
   }
 }

@@ -1,12 +1,12 @@
 package org.yarokovisty.stub.samples
 
+import org.yarokovisty.stub.dsl.any
 import org.yarokovisty.stub.dsl.every
 import org.yarokovisty.stub.dsl.stub
 import org.yarokovisty.stub.dsl.verify
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertNotEquals
 
 class ExampleUseCaseTest {
 
@@ -45,13 +45,12 @@ class ExampleUseCaseTest {
     }
 
     @Test
-    fun returnsWrongConfiguredWhenWrongInputParameters() {
-        val expected = ExampleData(0, "name")
+    fun throwsWhenCalledWithWrongArguments() {
         every { repository.getData(1, "value") } answers ExampleData(1, "value")
 
-        val dataResult = useCase.getData(0, "name")
-
-        assertNotEquals(expected, dataResult)
+        assertFailsWith<IllegalStateException> {
+            useCase.getData(0, "name")
+        }
     }
 
     @Test
@@ -89,5 +88,25 @@ class ExampleUseCaseTest {
         assertFailsWith<IllegalStateException> {
             verify { repository.getString() }
         }
+    }
+
+    @Test
+    fun anyMatcherMatchesAllArguments() {
+        every { repository.getData(any(), any()) } answers ExampleData(0, "any")
+
+        val result1 = useCase.getData(10, "foo")
+        val result2 = useCase.getData(20, "bar")
+
+        assertEquals(ExampleData(0, "any"), result1)
+        assertEquals(ExampleData(0, "any"), result2)
+    }
+
+    @Test
+    fun mixedAnyAndEqNotSupported() {
+        every { repository.getData(any(), any()) } answers ExampleData(0, "wildcard")
+        every { repository.getData(42, "specific") } answers ExampleData(42, "specific")
+
+        assertEquals(ExampleData(42, "specific"), useCase.getData(42, "specific"))
+        assertEquals(ExampleData(0, "wildcard"), useCase.getData(99, "other"))
     }
 }
