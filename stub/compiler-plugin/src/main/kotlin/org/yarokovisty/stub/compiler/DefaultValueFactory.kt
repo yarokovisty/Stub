@@ -1,8 +1,5 @@
-@file:Suppress("DEPRECATION_ERROR")
-
 package org.yarokovisty.stub.compiler
 
-import org.jetbrains.kotlin.DeprecatedForRemovalCompilerApi
 import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
 import org.jetbrains.kotlin.ir.builders.irBoolean
 import org.jetbrains.kotlin.ir.builders.irCallConstructor
@@ -10,6 +7,7 @@ import org.jetbrains.kotlin.ir.builders.irInt
 import org.jetbrains.kotlin.ir.builders.irLong
 import org.jetbrains.kotlin.ir.builders.irNull
 import org.jetbrains.kotlin.ir.builders.irString
+import org.jetbrains.kotlin.ir.declarations.IrParameterKind
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.impl.IrConstImpl
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
@@ -24,7 +22,7 @@ import org.jetbrains.kotlin.ir.types.isString
 import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.isNullable
 
-@OptIn(DeprecatedForRemovalCompilerApi::class, UnsafeDuringIrConstructionAPI::class)
+@OptIn(UnsafeDuringIrConstructionAPI::class)
 object DefaultValueFactory {
 
     private const val MAX_RECURSION_DEPTH = 10
@@ -61,8 +59,10 @@ object DefaultValueFactory {
             ?: irClass.constructors.firstOrNull()
             ?: return builder.irNull()
         return builder.irCallConstructor(constructor.symbol, emptyList()).apply {
-            for ((index, param) in constructor.valueParameters.withIndex()) {
-                putValueArgument(index, defaultIrValue(param.type, builder, depth + 1))
+            for (param in constructor.parameters) {
+                if (param.kind == IrParameterKind.Regular) {
+                    arguments[param.indexInParameters] = defaultIrValue(param.type, builder, depth + 1)
+                }
             }
         }
     }

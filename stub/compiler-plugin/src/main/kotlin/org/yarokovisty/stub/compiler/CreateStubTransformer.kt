@@ -1,8 +1,7 @@
-@file:Suppress("TooManyFunctions", "DEPRECATION_ERROR")
+@file:Suppress("TooManyFunctions")
 
 package org.yarokovisty.stub.compiler
 
-import org.jetbrains.kotlin.DeprecatedForRemovalCompilerApi
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.descriptors.ClassKind
@@ -30,6 +29,7 @@ import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrField
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrPackageFragment
+import org.jetbrains.kotlin.ir.declarations.IrParameterKind
 import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.expressions.IrCall
@@ -37,9 +37,9 @@ import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.types.IrType
-import org.jetbrains.kotlin.ir.types.classFqName
 import org.jetbrains.kotlin.ir.types.classOrNull
 import org.jetbrains.kotlin.ir.types.defaultType
+import org.jetbrains.kotlin.ir.util.classIdOrFail
 import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.copyTo
 import org.jetbrains.kotlin.ir.util.createThisReceiverParameter
@@ -52,7 +52,7 @@ import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 
 @Suppress("ReturnCount")
-@OptIn(DeprecatedForRemovalCompilerApi::class, UnsafeDuringIrConstructionAPI::class)
+@OptIn(UnsafeDuringIrConstructionAPI::class)
 class CreateStubTransformer(
     private val pluginContext: IrPluginContext,
 ) : IrElementTransformerVoid() {
@@ -88,8 +88,8 @@ class CreateStubTransformer(
         pluginContext.referenceFunctions(
             CallableId(FqName("kotlin.collections"), Name.identifier("listOf")),
         ).first { symbol ->
-            val params = symbol.owner.valueParameters
-            params.size == 1 && params[0].varargElementType != null
+            val regularParams = symbol.owner.parameters.filter { it.kind == IrParameterKind.Regular }
+            regularParams.size == 1 && regularParams[0].varargElementType != null
         }
     }
 
@@ -113,14 +113,13 @@ class CreateStubTransformer(
             return super.visitCall(expression)
         }
 
-        val typeArg = expression.getTypeArgument(0)
+        val typeArg = expression.typeArguments[0]
             ?: return super.visitCall(expression)
 
         val targetClass = typeArg.classOrNull?.owner
             ?: return super.visitCall(expression)
 
-        val fqName = targetClass.defaultType.classFqName?.asString()
-            ?: return super.visitCall(expression)
+        val fqName = targetClass.classIdOrFail.asFqNameString()
 
         val stubClass = generatedStubs.getOrPut(fqName) {
             generateStubClass(targetClass)
@@ -209,8 +208,11 @@ class CreateStubTransformer(
                     val targetConstructor = targetClass.constructors.firstOrNull { it.isPrimary }
                         ?: targetClass.constructors.first()
                     +irDelegatingConstructorCall(targetConstructor).apply {
-                        for ((index, param) in targetConstructor.valueParameters.withIndex()) {
-                            putValueArgument(index, DefaultValueFactory.defaultIrValue(param.type, this@irBlockBody))
+                        for (param in targetConstructor.parameters) {
+                            if (param.kind == IrParameterKind.Regular) {
+                                arguments[param.indexInParameters] =
+                                    DefaultValueFactory.defaultIrValue(param.type, this@irBlockBody)
+                            }
                         }
                     }
                 }
@@ -242,7 +244,9 @@ class CreateStubTransformer(
                 modality = Modality.OPEN
                 origin = IrDeclarationOrigin.DEFINED
             }.apply {
-                dispatchReceiverParameter = stubClass.thisReceiver?.copyTo(this)
+                stubClass.thisReceiver?.copyTo(this)?.let { dispatchParam ->
+                    parameters = listOf(dispatchParam) + parameters
+                }
                 overriddenSymbols = listOf(stubbableProp.getter!!.symbol)
 
                 body = DeclarationIrBuilder(pluginContext, symbol).irBlockBody {
@@ -262,33 +266,36 @@ class CreateStubTransformer(
             isSuspend = function.isSuspend
             origin = IrDeclarationOrigin.DEFINED
         }.apply {
-            dispatchReceiverParameter = stubClass.thisReceiver?.copyTo(this)
+            stubClass.thisReceiver?.copyTo(this)?.let { dispatchParam ->
+                parameters = listOf(dispatchParam) + parameters
+            }
             overriddenSymbols = listOf(function.symbol)
 
-            val addedParams = function.valueParameters.map { param ->
-                addValueParameter(param.name.asString(), param.type)
-            }
+            val addedParams = function.parameters
+                .filter { it.kind == IrParameterKind.Regular }
+                .map { param -> addValueParameter(param.name.asString(), param.type) }
 
             body = DeclarationIrBuilder(pluginContext, symbol).irBlockBody {
                 val methodName = extractMethodName(function)
                 val delegateGet = irGetField(irGet(dispatchReceiverParameter!!), delegateField)
+                val handleRegularParams = handleFunction.parameters
+                    .filter { it.kind == IrParameterKind.Regular }
                 val handleCall = irCall(handleFunction).apply {
                     dispatchReceiver = delegateGet
-                    putTypeArgument(0, function.returnType)
-                    putValueArgument(0, irString(methodName))
+                    typeArguments[0] = function.returnType
+                    arguments[handleRegularParams[0].indexInParameters] = irString(methodName)
 
                     if (addedParams.isNotEmpty()) {
+                        val listOfRegularParams = listOfFunction.owner.parameters
+                            .filter { it.kind == IrParameterKind.Regular }
                         val argsList = irCall(listOfFunction).apply {
-                            putTypeArgument(0, anyNullableType)
-                            putValueArgument(
-                                0,
-                                irVararg(
-                                    anyNullableType,
-                                    addedParams.map { irGet(it) },
-                                ),
+                            typeArguments[0] = anyNullableType
+                            arguments[listOfRegularParams[0].indexInParameters] = irVararg(
+                                anyNullableType,
+                                addedParams.map { irGet(it) },
                             )
                         }
-                        putValueArgument(1, argsList)
+                        arguments[handleRegularParams[1].indexInParameters] = argsList
                     }
                 }
                 +irReturn(handleCall)

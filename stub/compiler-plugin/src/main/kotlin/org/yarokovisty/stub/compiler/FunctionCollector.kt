@@ -1,20 +1,18 @@
-@file:Suppress("DEPRECATION_ERROR")
-
 package org.yarokovisty.stub.compiler
 
-import org.jetbrains.kotlin.DeprecatedForRemovalCompilerApi
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.declarations.IrClass
+import org.jetbrains.kotlin.ir.declarations.IrParameterKind
 import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
-import org.jetbrains.kotlin.ir.types.classFqName
 import org.jetbrains.kotlin.ir.types.classOrNull
+import org.jetbrains.kotlin.ir.util.classIdOrFail
 import org.jetbrains.kotlin.name.Name
 
-@OptIn(DeprecatedForRemovalCompilerApi::class, UnsafeDuringIrConstructionAPI::class)
+@OptIn(UnsafeDuringIrConstructionAPI::class)
 object FunctionCollector {
 
     fun collectOverridableFunctions(irClass: IrClass): List<IrSimpleFunction> {
@@ -71,7 +69,9 @@ object FunctionCollector {
     }
 
     private fun functionSignature(function: IrSimpleFunction): String =
-        "${function.name}(${function.valueParameters.joinToString(",") { p ->
-            p.type.classFqName?.asString() ?: "?"
-        }})"
+        "${function.name}(${function.parameters
+            .filter { it.kind == IrParameterKind.Regular }
+            .joinToString(",") { p ->
+                p.type.classOrNull?.owner?.classIdOrFail?.asFqNameString() ?: "?"
+            }})"
 }
