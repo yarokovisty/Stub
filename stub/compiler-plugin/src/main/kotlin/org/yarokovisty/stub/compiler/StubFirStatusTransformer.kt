@@ -2,6 +2,7 @@
 
 package org.yarokovisty.stub.compiler
 
+import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.declarations.FirDeclaration
@@ -16,7 +17,16 @@ import org.jetbrains.kotlin.fir.symbols.impl.FirClassLikeSymbol
 class StubFirStatusTransformer(session: FirSession) : FirStatusTransformerExtension(session) {
 
     override fun needTransformStatus(declaration: FirDeclaration): Boolean =
-        declaration is FirRegularClass || declaration is FirSimpleFunction || declaration is FirProperty
+        when (declaration) {
+            is FirRegularClass -> isRegularClass(declaration)
+            is FirSimpleFunction -> true
+            is FirProperty -> true
+            else -> false
+        }
+
+    private fun isRegularClass(declaration: FirRegularClass): Boolean =
+        declaration.classKind == ClassKind.CLASS &&
+            declaration.status.modality != Modality.SEALED
 
     override fun transformStatus(
         status: FirDeclarationStatus,
@@ -24,7 +34,7 @@ class StubFirStatusTransformer(session: FirSession) : FirStatusTransformerExtens
         containingClass: FirClassLikeSymbol<*>?,
         isLocal: Boolean,
     ): FirDeclarationStatus =
-        openStatus(status)
+        if (isLocal) status else openStatus(status)
 
     override fun transformStatus(
         status: FirDeclarationStatus,
@@ -32,7 +42,7 @@ class StubFirStatusTransformer(session: FirSession) : FirStatusTransformerExtens
         containingClass: FirClassLikeSymbol<*>?,
         isLocal: Boolean,
     ): FirDeclarationStatus =
-        openStatus(status)
+        if (isLocal || containingClass == null) status else openStatus(status)
 
     override fun transformStatus(
         status: FirDeclarationStatus,
@@ -40,7 +50,7 @@ class StubFirStatusTransformer(session: FirSession) : FirStatusTransformerExtens
         containingClass: FirClassLikeSymbol<*>?,
         isLocal: Boolean,
     ): FirDeclarationStatus =
-        openStatus(status)
+        if (isLocal || containingClass == null) status else openStatus(status)
 
     @Suppress("ReturnCount")
     private fun openStatus(status: FirDeclarationStatus): FirDeclarationStatus {

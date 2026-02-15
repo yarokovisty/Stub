@@ -23,4 +23,4 @@ kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 stubAndroidLibrary = { id = "org.yarokovisty.stub.androidLibrary", version.ref = "stub" }
 stubCompiler = { id = "org.yarokovisty.stub.compiler", version.ref = "stub" }
-stubKotlinMultyplatform = { id = "org.yarokovisty.stub.kmp", version.ref = "stub" }
+stubKotlinMultiplatform = { id = "org.yarokovisty.stub.kmp", version.ref = "stub" }

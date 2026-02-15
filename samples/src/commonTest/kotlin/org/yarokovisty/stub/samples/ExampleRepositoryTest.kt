@@ -19,9 +19,9 @@ class ExampleRepositoryTest {
     @Test
     fun returnsConfiguredValue() {
         val expected = ExampleData(0, "name")
-        every { dataSource.getString() } answers "mocked data"
-        every { dataSource.getInt() } answers 0
-        every { dataSource.getData(0, "name") } answers ExampleData(0, "name")
+        every { dataSource.getString() } returns "mocked data"
+        every { dataSource.getInt() } returns 0
+        every { dataSource.getData(0, "name") } returns ExampleData(0, "name")
 
         val stringResult = repository.getString()
         val intResult = repository.getInt()
@@ -34,9 +34,9 @@ class ExampleRepositoryTest {
 
     @Test
     fun verifiesMethodWasCalled() {
-        every { dataSource.getString() } answers "mocked data"
-        every { dataSource.getInt() } answers 0
-        every { dataSource.getData(0, "name") } answers ExampleData(0, "name")
+        every { dataSource.getString() } returns "mocked data"
+        every { dataSource.getInt() } returns 0
+        every { dataSource.getData(0, "name") } returns ExampleData(0, "name")
 
         repository.getString()
         repository.getInt()
@@ -49,7 +49,7 @@ class ExampleRepositoryTest {
 
     @Test
     fun throwsWhenCalledWithWrongArguments() {
-        every { dataSource.getData(1, "value") } answers ExampleData(1, "value")
+        every { dataSource.getData(1, "value") } returns ExampleData(1, "value")
 
         assertFailsWith<IllegalStateException> {
             repository.getData(0, "name")
@@ -58,7 +58,7 @@ class ExampleRepositoryTest {
 
     @Test
     fun returnsConfiguredValueForSuspendFunction() = runTest {
-        coEvery { dataSource.getData() } answers ExampleData(0, "value")
+        coEvery { dataSource.getData() } returns ExampleData(0, "value")
 
         val result = repository.getData()
 
@@ -67,7 +67,7 @@ class ExampleRepositoryTest {
 
     @Test
     fun anyMatcherMatchesAllArguments() {
-        every { dataSource.getData(any(), any()) } answers ExampleData(99, "any")
+        every { dataSource.getData(any(), any()) } returns ExampleData(99, "any")
 
         val result1 = repository.getData(1, "a")
         val result2 = repository.getData(2, "b")
@@ -78,7 +78,7 @@ class ExampleRepositoryTest {
 
     @Test
     fun eqMatcherMatchesExactArguments() {
-        every { dataSource.getData(eq(5), eq("test")) } answers ExampleData(5, "test")
+        every { dataSource.getData(eq(5), eq("test")) } returns ExampleData(5, "test")
 
         val result = repository.getData(5, "test")
 
@@ -90,8 +90,8 @@ class ExampleRepositoryTest {
 
     @Test
     fun lastRegisteredAnswerWins() {
-        every { dataSource.getData(any(), any()) } answers ExampleData(0, "fallback")
-        every { dataSource.getData(1, "special") } answers ExampleData(1, "special")
+        every { dataSource.getData(any(), any()) } returns ExampleData(0, "fallback")
+        every { dataSource.getData(1, "special") } returns ExampleData(1, "special")
 
         val specific = repository.getData(1, "special")
         val fallback = repository.getData(2, "other")

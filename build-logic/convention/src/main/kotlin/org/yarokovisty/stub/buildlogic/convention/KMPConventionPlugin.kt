@@ -37,6 +37,8 @@ class KMPConventionPlugin : Plugin<Project> {
             iosArm64()
             iosSimulatorArm64()
 
+            js { nodejs() }
+
             jvm()
         }
     }

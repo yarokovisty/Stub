@@ -16,9 +16,9 @@ class ExampleUseCaseTest {
     @Test
     fun returnsConfiguredValue() {
         val expected = ExampleData(0, "name")
-        every { repository.getString() } answers "mocked data"
-        every { repository.getInt() } answers 1
-        every { repository.getData(0, "name") } answers ExampleData(0, "name")
+        every { repository.getString() } returns "mocked data"
+        every { repository.getInt() } returns 1
+        every { repository.getData(0, "name") } returns ExampleData(0, "name")
 
         val stringResult = useCase.getString()
         val intResult = useCase.getInt()
@@ -31,9 +31,9 @@ class ExampleUseCaseTest {
 
     @Test
     fun verifiesMethodWasCalled() {
-        every { repository.getString() } answers "mocked data"
-        every { repository.getInt() } answers 1
-        every { repository.getData(0, "name") } answers ExampleData(0, "name")
+        every { repository.getString() } returns "mocked data"
+        every { repository.getInt() } returns 1
+        every { repository.getData(0, "name") } returns ExampleData(0, "name")
 
         useCase.getString()
         useCase.getInt()
@@ -46,7 +46,7 @@ class ExampleUseCaseTest {
 
     @Test
     fun throwsWhenCalledWithWrongArguments() {
-        every { repository.getData(1, "value") } answers ExampleData(1, "value")
+        every { repository.getData(1, "value") } returns ExampleData(1, "value")
 
         assertFailsWith<IllegalStateException> {
             useCase.getData(0, "name")
@@ -83,7 +83,7 @@ class ExampleUseCaseTest {
 
     @Test
     fun failsVerificationWhenNotCalled() {
-        every { repository.getString() } answers "data"
+        every { repository.getString() } returns "data"
 
         assertFailsWith<IllegalStateException> {
             verify { repository.getString() }
@@ -92,7 +92,7 @@ class ExampleUseCaseTest {
 
     @Test
     fun anyMatcherMatchesAllArguments() {
-        every { repository.getData(any(), any()) } answers ExampleData(0, "any")
+        every { repository.getData(any(), any()) } returns ExampleData(0, "any")
 
         val result1 = useCase.getData(10, "foo")
         val result2 = useCase.getData(20, "bar")
@@ -103,8 +103,8 @@ class ExampleUseCaseTest {
 
     @Test
     fun mixedAnyAndEqNotSupported() {
-        every { repository.getData(any(), any()) } answers ExampleData(0, "wildcard")
-        every { repository.getData(42, "specific") } answers ExampleData(42, "specific")
+        every { repository.getData(any(), any()) } returns ExampleData(0, "wildcard")
+        every { repository.getData(42, "specific") } returns ExampleData(42, "specific")
 
         assertEquals(ExampleData(42, "specific"), useCase.getData(42, "specific"))
         assertEquals(ExampleData(0, "wildcard"), useCase.getData(99, "other"))

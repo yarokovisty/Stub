@@ -1,5 +1,10 @@
 package org.yarokovisty.stub.runtime
 
+import kotlin.concurrent.atomics.AtomicReference
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
+
+@Suppress("TooManyFunctions")
+@OptIn(ExperimentalAtomicApi::class)
 class StubDelegate {
 
     private data class AnswerEntry(
@@ -8,8 +13,8 @@ class StubDelegate {
         val answer: Answer<*>,
     )
 
-    private val entries = mutableListOf<AnswerEntry>()
-    private val callLog = mutableListOf<MethodCall>()
+    private val entries = AtomicReference<List<AnswerEntry>>(emptyList())
+    private val callLog = AtomicReference<List<MethodCall>>(emptyList())
 
     @Suppress("UNCHECKED_CAST")
     fun <T> handle(methodName: String, args: List<Any?> = emptyList()): T {
@@ -20,7 +25,7 @@ class StubDelegate {
             return null as T
         }
 
-        callLog.add(call)
+        appendToCallLog(call)
         val answer = findAnswer(methodName, args)
             ?: throw MissingAnswerException(methodName)
 
@@ -28,17 +33,43 @@ class StubDelegate {
     }
 
     fun setAnswer(methodName: String, matchers: List<Matcher<*>>, answer: Answer<*>) {
-        entries.add(AnswerEntry(methodName, matchers, answer))
+        while (true) {
+            val current = entries.load()
+            val updated = current + AnswerEntry(methodName, matchers, answer)
+            if (entries.compareAndSet(current, updated)) return
+        }
     }
 
     fun wasCalled(methodName: String): Boolean =
-        callLog.any { it.methodName == methodName }
+        callLog.load().any { it.methodName == methodName }
+
+    fun wasCalledMatching(methodName: String, matchers: List<Matcher<*>>): Boolean =
+        callLog.load().any { call ->
+            call.methodName == methodName && matchesArgs(matchers, call.args)
+        }
 
     fun callCount(methodName: String): Int =
-        callLog.count { it.methodName == methodName }
+        callLog.load().count { it.methodName == methodName }
+
+    fun reset() {
+        entries.store(emptyList())
+        callLog.store(emptyList())
+    }
+
+    fun clearInvocations() {
+        callLog.store(emptyList())
+    }
+
+    private fun appendToCallLog(call: MethodCall) {
+        while (true) {
+            val current = callLog.load()
+            val updated = current + call
+            if (callLog.compareAndSet(current, updated)) return
+        }
+    }
 
     private fun findAnswer(methodName: String, args: List<Any?>): Answer<*>? =
-        entries.lastOrNull { entry ->
+        entries.load().lastOrNull { entry ->
             entry.methodName == methodName && matchesArgs(entry.matchers, args)
         }?.answer
 

@@ -1,6 +1,6 @@
 plugins {
     alias(libs.plugins.stubAndroidLibrary)
-    alias(libs.plugins.stubKotlinMultyplatform)
+    alias(libs.plugins.stubKotlinMultiplatform)
 }
 
 kotlin {

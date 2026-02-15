@@ -1,6 +1,7 @@
 package org.yarokovisty.stub.dsl
 
 import org.yarokovisty.stub.runtime.MockRecorder
+import org.yarokovisty.stub.runtime.RecordedCall
 
 @Suppress("TooGenericExceptionCaught")
 fun verify(block: () -> Unit) {
@@ -12,10 +13,7 @@ fun verify(block: () -> Unit) {
     } catch (ignored: ClassCastException) {
         // Expected for primitive return types during recording
     }
-    val recorded = MockRecorder.stopRecording()
-    check(recorded.delegate.wasCalled(recorded.call.methodName)) {
-        "Expected call to '${recorded.call.methodName}' was not recorded."
-    }
+    checkRecordedCall(MockRecorder.stopRecording())
 }
 
 @Suppress("TooGenericExceptionCaught")
@@ -28,8 +26,11 @@ suspend fun coVerify(block: suspend () -> Unit) {
     } catch (ignored: ClassCastException) {
         // Expected for primitive return types during recording
     }
-    val recorded = MockRecorder.stopRecording()
-    check(recorded.delegate.wasCalled(recorded.call.methodName)) {
+    checkRecordedCall(MockRecorder.stopRecording())
+}
+
+private fun checkRecordedCall(recorded: RecordedCall) {
+    check(recorded.delegate.wasCalledMatching(recorded.call.methodName, recorded.matchers)) {
         "Expected call to '${recorded.call.methodName}' was not recorded."
     }
 }

@@ -1,26 +1,31 @@
 package org.yarokovisty.stub.runtime
 
+import kotlin.concurrent.atomics.AtomicReference
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
+
+@OptIn(ExperimentalAtomicApi::class)
 object MockRecorder {
 
-    private var recording = false
-    private var lastCall: Pair<StubDelegate, MethodCall>? = null
+    private data class State(
+        val recording: Boolean = false,
+        val lastCall: Pair<StubDelegate, MethodCall>? = null,
+    )
 
-    val isRecording: Boolean get() = recording
+    private val state = AtomicReference(State())
+
+    val isRecording: Boolean get() = state.load().recording
 
     fun startRecording() {
-        recording = true
-        lastCall = null
+        state.store(State(recording = true, lastCall = null))
     }
 
     fun record(delegate: StubDelegate, call: MethodCall) {
-        lastCall = Pair(delegate, call)
+        state.store(state.load().copy(lastCall = Pair(delegate, call)))
     }
 
     fun stopRecording(): RecordedCall {
-        recording = false
-        val captured = lastCall
-        lastCall = null
-        val (delegate, call) = checkNotNull(captured) {
+        val captured = state.exchange(State())
+        val (delegate, call) = checkNotNull(captured.lastCall) {
             "No stub method was called inside every { } block."
         }
         val matchers = resolveMatchers(call)

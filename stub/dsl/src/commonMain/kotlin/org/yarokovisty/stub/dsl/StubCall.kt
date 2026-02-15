@@ -11,7 +11,7 @@ class StubCall<T>(
     private val matchers: List<Matcher<*>>,
 ) {
 
-    infix fun answers(value: T) {
+    infix fun returns(value: T) {
         delegate.setAnswer(methodName, matchers, Answer.Value(value))
     }
 
