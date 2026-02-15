@@ -8,6 +8,7 @@ import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.Modality
+import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
 import org.jetbrains.kotlin.ir.builders.declarations.addConstructor
 import org.jetbrains.kotlin.ir.builders.declarations.addField
 import org.jetbrains.kotlin.ir.builders.declarations.addFunction
@@ -16,11 +17,15 @@ import org.jetbrains.kotlin.ir.builders.declarations.addProperty
 import org.jetbrains.kotlin.ir.builders.declarations.addValueParameter
 import org.jetbrains.kotlin.ir.builders.declarations.buildClass
 import org.jetbrains.kotlin.ir.builders.irBlockBody
+import org.jetbrains.kotlin.ir.builders.irBoolean
 import org.jetbrains.kotlin.ir.builders.irCall
 import org.jetbrains.kotlin.ir.builders.irCallConstructor
 import org.jetbrains.kotlin.ir.builders.irDelegatingConstructorCall
 import org.jetbrains.kotlin.ir.builders.irGet
 import org.jetbrains.kotlin.ir.builders.irGetField
+import org.jetbrains.kotlin.ir.builders.irInt
+import org.jetbrains.kotlin.ir.builders.irLong
+import org.jetbrains.kotlin.ir.builders.irNull
 import org.jetbrains.kotlin.ir.builders.irReturn
 import org.jetbrains.kotlin.ir.builders.irSetField
 import org.jetbrains.kotlin.ir.builders.irString
@@ -34,17 +39,25 @@ import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
+import org.jetbrains.kotlin.ir.expressions.impl.IrConstImpl
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.classFqName
 import org.jetbrains.kotlin.ir.types.classOrNull
 import org.jetbrains.kotlin.ir.types.defaultType
+import org.jetbrains.kotlin.ir.types.isBoolean
+import org.jetbrains.kotlin.ir.types.isDouble
+import org.jetbrains.kotlin.ir.types.isFloat
+import org.jetbrains.kotlin.ir.types.isInt
+import org.jetbrains.kotlin.ir.types.isLong
+import org.jetbrains.kotlin.ir.types.isString
 import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.copyTo
 import org.jetbrains.kotlin.ir.util.createThisReceiverParameter
 import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.ir.util.functions
+import org.jetbrains.kotlin.ir.util.isNullable
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.ClassId
@@ -148,6 +161,8 @@ class CreateStubTransformer(
     }
 
     private fun generateStubClass(targetClass: IrClass): IrClass {
+        val isInterface = targetClass.kind == ClassKind.INTERFACE
+
         val stubClassName = "Stub__${targetClass.name.asString()}"
 
         val stubClass = pluginContext.irFactory.buildClass {
@@ -165,9 +180,15 @@ class CreateStubTransformer(
         }
 
         val delegateField = addDelegateField(stubClass)
-        addConstructor(stubClass, delegateField)
+        addConstructor(stubClass, delegateField, targetClass, isInterface)
         addStubbableGetter(stubClass, delegateField)
-        collectAbstractFunctions(targetClass).forEach { addOverrideMethod(stubClass, it, delegateField) }
+
+        val methods = if (isInterface) {
+            collectAbstractFunctions(targetClass)
+        } else {
+            collectOverridableFunctions(targetClass)
+        }
+        methods.forEach { addOverrideMethod(stubClass, it, delegateField) }
 
         currentFile?.declarations?.add(stubClass)
 
@@ -182,15 +203,30 @@ class CreateStubTransformer(
             origin = IrDeclarationOrigin.DEFINED
         }
 
-    private fun addConstructor(stubClass: IrClass, delegateField: IrField) {
+    private fun addConstructor(
+        stubClass: IrClass,
+        delegateField: IrField,
+        targetClass: IrClass,
+        isInterface: Boolean,
+    ) {
         stubClass.addConstructor {
             isPrimary = true
             visibility = DescriptorVisibilities.PUBLIC
         }.apply {
             body = DeclarationIrBuilder(pluginContext, symbol).irBlockBody {
-                +irDelegatingConstructorCall(
-                    pluginContext.irBuiltIns.anyClass.owner.constructors.first(),
-                )
+                if (isInterface) {
+                    +irDelegatingConstructorCall(
+                        pluginContext.irBuiltIns.anyClass.owner.constructors.first(),
+                    )
+                } else {
+                    val targetConstructor = targetClass.constructors.firstOrNull { it.isPrimary }
+                        ?: targetClass.constructors.first()
+                    +irDelegatingConstructorCall(targetConstructor).apply {
+                        for ((index, param) in targetConstructor.valueParameters.withIndex()) {
+                            putValueArgument(index, defaultIrValue(param.type, this@irBlockBody))
+                        }
+                    }
+                }
                 +irSetField(
                     irGet(stubClass.thisReceiver!!),
                     delegateField,
@@ -228,6 +264,31 @@ class CreateStubTransformer(
             }
         }
     }
+
+    private fun collectOverridableFunctions(irClass: IrClass): List<IrSimpleFunction> {
+        val result = mutableListOf<IrSimpleFunction>()
+        for (declaration in irClass.declarations) {
+            if (declaration is IrSimpleFunction && isOverridableFunction(declaration)) {
+                result.add(declaration)
+            }
+            if (declaration is IrProperty) {
+                declaration.getter?.takeIf {
+                    it.visibility == DescriptorVisibilities.PUBLIC &&
+                        !it.isFakeOverride
+                }?.let(result::add)
+                declaration.setter?.takeIf {
+                    it.visibility == DescriptorVisibilities.PUBLIC &&
+                        !it.isFakeOverride
+                }?.let(result::add)
+            }
+        }
+        return result
+    }
+
+    private fun isOverridableFunction(function: IrSimpleFunction): Boolean =
+        function.visibility == DescriptorVisibilities.PUBLIC &&
+            !function.isFakeOverride &&
+            function.name != Name.identifier("<init>")
 
     private fun collectAbstractFunctions(irClass: IrClass): List<IrSimpleFunction> {
         val result = mutableListOf<IrSimpleFunction>()
@@ -296,6 +357,42 @@ class CreateStubTransformer(
                     }
                 }
                 +irReturn(handleCall)
+            }
+        }
+    }
+
+    @Suppress("MagicNumber")
+    private fun defaultIrValue(type: IrType, builder: IrBuilderWithScope): IrExpression =
+        when {
+            type.isNullable() -> builder.irNull()
+            type.isInt() -> builder.irInt(0)
+            type.isLong() -> builder.irLong(0L)
+            type.isFloat() -> IrConstImpl.float(
+                builder.startOffset,
+                builder.endOffset,
+                type,
+                0f,
+            )
+            type.isDouble() -> IrConstImpl.double(
+                builder.startOffset,
+                builder.endOffset,
+                type,
+                0.0,
+            )
+            type.isBoolean() -> builder.irBoolean(false)
+            type.isString() -> builder.irString("")
+            else -> constructDefaultInstance(type, builder)
+        }
+
+    private fun constructDefaultInstance(type: IrType, builder: IrBuilderWithScope): IrExpression {
+        val classSymbol = type.classOrNull ?: return builder.irNull()
+        val irClass = classSymbol.owner
+        val constructor = irClass.constructors.firstOrNull { it.isPrimary }
+            ?: irClass.constructors.firstOrNull()
+            ?: return builder.irNull()
+        return builder.irCallConstructor(constructor.symbol, emptyList()).apply {
+            for ((index, param) in constructor.valueParameters.withIndex()) {
+                putValueArgument(index, defaultIrValue(param.type, builder))
             }
         }
     }
