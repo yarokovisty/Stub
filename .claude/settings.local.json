@@ -39,7 +39,10 @@
       "Bash(C:/YarokovistY/KMP/Stub/gradlew.bat :samples:allTests --console=plain)",
       "Bash(C:/YarokovistY/KMP/Stub/gradlew.bat detekt --console=plain)",
       "Bash(C:/YarokovistY/KMP/Stub/gradlew.bat :stub:runtime:detekt :stub:dsl:detekt :samples:detekt --console=plain)",
-      "Bash(C:/YarokovistY/KMP/Stub/gradlew.bat :stub:runtime:detekt --console=plain)"
+      "Bash(C:/YarokovistY/KMP/Stub/gradlew.bat :stub:runtime:detekt --console=plain)",
+      "Bash(C:/YarokovistY/KMP/Stub/gradlew.bat detekt)",
+      "Bash(.gradlew.bat:*)",
+      "Bash(./gradlew:*)"
     ]
   }
 }

@@ -1,7 +1,6 @@
+enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
+
 pluginManagement {
-
-    includeBuild("build-logic")
-
     repositories {
         google()
         mavenCentral()
@@ -19,7 +18,7 @@ dependencyResolutionManagement {
 plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0"
 }
-rootProject.name = "Stub"
+rootProject.name = "stub-root"
 
 include(":samples")
 include(":stub:compiler-plugin")
