@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.detekt) apply false
     alias(libs.plugins.kotlinJvm) apply false
     alias(libs.plugins.kotlinMultiplatform) apply false
+    alias(libs.plugins.mavenPublish) apply false
 }
 
 allprojects.onEach { project ->

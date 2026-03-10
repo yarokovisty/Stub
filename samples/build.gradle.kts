@@ -25,6 +25,7 @@ kotlin {
     sourceSets {
         commonTest.dependencies {
             implementation(projects.stub.dsl)
+            implementation(projects.stub.runtime)
 
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)

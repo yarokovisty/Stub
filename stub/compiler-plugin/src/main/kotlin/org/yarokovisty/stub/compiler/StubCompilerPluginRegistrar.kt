@@ -11,6 +11,8 @@ class StubCompilerPluginRegistrar : CompilerPluginRegistrar() {
 
     override val supportsK2: Boolean = true
 
+    override val pluginId: String = "io.github.yarokovisty.stub.compiler"
+
     override fun ExtensionStorage.registerExtensions(configuration: CompilerConfiguration) {
         FirExtensionRegistrarAdapter.registerExtension(StubFirExtensionRegistrar())
         IrGenerationExtension.registerExtension(StubIrGenerationExtension())
