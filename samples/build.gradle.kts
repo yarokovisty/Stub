@@ -30,6 +30,9 @@ kotlin {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
         }
+        commonMain.dependencies {
+            implementation(libs.ktor.client.core)
+        }
     }
 }
 

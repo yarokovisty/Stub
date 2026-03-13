@@ -18,8 +18,10 @@ import org.jetbrains.kotlin.ir.builders.irBlockBody
 import org.jetbrains.kotlin.ir.builders.irCall
 import org.jetbrains.kotlin.ir.builders.irCallConstructor
 import org.jetbrains.kotlin.ir.builders.irDelegatingConstructorCall
+import org.jetbrains.kotlin.ir.builders.irExprBody
 import org.jetbrains.kotlin.ir.builders.irGet
 import org.jetbrains.kotlin.ir.builders.irGetField
+import org.jetbrains.kotlin.ir.builders.irNull
 import org.jetbrains.kotlin.ir.builders.irReturn
 import org.jetbrains.kotlin.ir.builders.irSetField
 import org.jetbrains.kotlin.ir.builders.irString
@@ -39,12 +41,20 @@ import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.classOrNull
 import org.jetbrains.kotlin.ir.types.defaultType
+import org.jetbrains.kotlin.ir.types.isBoolean
+import org.jetbrains.kotlin.ir.types.isDouble
+import org.jetbrains.kotlin.ir.types.isFloat
+import org.jetbrains.kotlin.ir.types.isInt
+import org.jetbrains.kotlin.ir.types.isLong
+import org.jetbrains.kotlin.ir.types.isString
+import org.jetbrains.kotlin.ir.types.makeNullable
 import org.jetbrains.kotlin.ir.util.classIdOrFail
 import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.copyTo
 import org.jetbrains.kotlin.ir.util.createThisReceiverParameter
 import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.ir.util.functions
+import org.jetbrains.kotlin.ir.util.isNullable
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.ClassId
@@ -58,6 +68,7 @@ class CreateStubTransformer(
 ) : IrElementTransformerVoid() {
 
     private val generatedStubs = mutableMapOf<String, IrClass>()
+    private val defaultValueFactory = DefaultValueFactory(pluginContext, ::generateStubClass)
 
     private val stubDelegateClassId = ClassId(
         FqName("org.yarokovisty.stub.runtime"),
@@ -176,6 +187,12 @@ class CreateStubTransformer(
         }
         methods.forEach { addOverrideMethod(stubClass, it, delegateField) }
 
+        // Handle properties separately to avoid illegal <get-X> method names
+        if (!isInterface) {
+            val properties = FunctionCollector.collectOverridableProperties(targetClass)
+            properties.forEach { addOverrideProperty(stubClass, it, delegateField) }
+        }
+
         currentFile?.declarations?.add(stubClass)
 
         return stubClass
@@ -189,6 +206,7 @@ class CreateStubTransformer(
             origin = IrDeclarationOrigin.DEFINED
         }
 
+    @Suppress("ComplexMethod", "LongMethod")
     private fun addConstructor(
         stubClass: IrClass,
         delegateField: IrField,
@@ -199,6 +217,51 @@ class CreateStubTransformer(
             isPrimary = true
             visibility = DescriptorVisibilities.PUBLIC
         }.apply {
+            fun canProvideDefaultValue(type: IrType): Boolean {
+                if (type.isNullable()) return true
+                val classSymbol = type.classOrNull ?: return false
+                val irClass = classSymbol.owner
+                // Can provide default for non-final classes (we can stub them) and primitives
+                return irClass.modality != Modality.FINAL ||
+                       type.isInt() || type.isLong() || type.isFloat() ||
+                       type.isDouble() || type.isBoolean() || type.isString()
+            }
+
+            // Check if we can safely call the parent constructor before adding parameters
+            // We can call it if all parameters can be constructed (primitives, stubs, etc.)
+            // but not if they're final external classes
+            val canSafelyCallParent = if (!isInterface) {
+                val targetConstructor = targetClass.constructors.firstOrNull { it.isPrimary }
+                    ?: targetClass.constructors.first()
+                targetConstructor.parameters
+                    .filter { it.kind == IrParameterKind.Regular }
+                    .all { param -> canProvideDefaultValue(param.type) }
+            } else {
+                true
+            }
+
+            val constructorParams = if (!isInterface && canSafelyCallParent) {
+                val targetConstructor = targetClass.constructors.firstOrNull { it.isPrimary }
+                    ?: targetClass.constructors.first()
+
+                // Add constructor parameters with nullable types and default null values
+                targetConstructor.parameters
+                    .filter { it.kind == IrParameterKind.Regular }
+                    .map { param ->
+                        addValueParameter {
+                            name = param.name
+                            type = param.type.makeNullable()
+                            origin = IrDeclarationOrigin.DEFINED
+                        }.also {
+                            it.defaultValue = DeclarationIrBuilder(pluginContext, symbol).run {
+                                irExprBody(irNull())
+                            }
+                        }
+                    }
+            } else {
+                emptyList()
+            }
+
             body = DeclarationIrBuilder(pluginContext, symbol).irBlockBody {
                 if (isInterface) {
                     +irDelegatingConstructorCall(
@@ -207,13 +270,29 @@ class CreateStubTransformer(
                 } else {
                     val targetConstructor = targetClass.constructors.firstOrNull { it.isPrimary }
                         ?: targetClass.constructors.first()
-                    +irDelegatingConstructorCall(targetConstructor).apply {
-                        for (param in targetConstructor.parameters) {
-                            if (param.kind == IrParameterKind.Regular) {
-                                arguments[param.indexInParameters] =
-                                    DefaultValueFactory.defaultIrValue(param.type, this@irBlockBody)
+
+                    if (canSafelyCallParent) {
+                        +irDelegatingConstructorCall(targetConstructor).apply {
+                            constructorParams.forEachIndexed { index, stubParam ->
+                                val targetParam = targetConstructor.parameters
+                                    .filter { it.kind == IrParameterKind.Regular }[index]
+
+                                // Use the provided parameter value, or generate a default if null
+                                val paramValue = irGet(stubParam)
+                                arguments[targetParam.indexInParameters] =
+                                    defaultValueFactory.createNullCoalescing(
+                                        paramValue,
+                                        targetParam.type,
+                                        this@irBlockBody,
+                                    )
                             }
                         }
+                    } else {
+                        // Can't safely call parent constructor - call Any() instead
+                        // This is safe because all method calls are intercepted by the stub delegate
+                        +irDelegatingConstructorCall(
+                            pluginContext.irBuiltIns.anyClass.owner.constructors.first(),
+                        )
                     }
                 }
                 +irSetField(
@@ -299,6 +378,43 @@ class CreateStubTransformer(
                     }
                 }
                 +irReturn(handleCall)
+            }
+        }
+    }
+
+    private fun addOverrideProperty(stubClass: IrClass, property: IrProperty, delegateField: IrField) {
+        stubClass.addProperty {
+            name = property.name
+            visibility = DescriptorVisibilities.PUBLIC
+            modality = Modality.OPEN
+            origin = IrDeclarationOrigin.DEFINED
+        }.apply {
+            overriddenSymbols = listOf(property.symbol)
+            property.getter?.let { originalGetter ->
+                addGetter {
+                    returnType = originalGetter.returnType
+                    visibility = DescriptorVisibilities.PUBLIC
+                    modality = Modality.OPEN
+                    origin = IrDeclarationOrigin.DEFINED
+                }.apply {
+                    stubClass.thisReceiver?.copyTo(this)?.let { dispatchParam ->
+                        parameters = listOf(dispatchParam) + parameters
+                    }
+                    overriddenSymbols = listOf(originalGetter.symbol)
+
+                    body = DeclarationIrBuilder(pluginContext, symbol).irBlockBody {
+                        val methodName = property.name.asString()
+                        val delegateGet = irGetField(irGet(dispatchReceiverParameter!!), delegateField)
+                        val handleRegularParams = handleFunction.parameters
+                            .filter { it.kind == IrParameterKind.Regular }
+                        val handleCall = irCall(handleFunction).apply {
+                            dispatchReceiver = delegateGet
+                            typeArguments[0] = originalGetter.returnType
+                            arguments[handleRegularParams[0].indexInParameters] = irString(methodName)
+                        }
+                        +irReturn(handleCall)
+                    }
+                }
             }
         }
     }

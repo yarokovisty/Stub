@@ -1,18 +1,20 @@
 package org.yarokovisty.stub.samples
 
-class ExampleHttpClient {
+import io.ktor.client.call.body
 
-    @Suppress("FunctionOnlyReturningConstant")
+class ExampleDataSource(
+    private val client: IHttpClient,
+) {
+
     fun getString(): String =
-        "Request 200"
+        "string"
 
-    @Suppress("FunctionOnlyReturningConstant")
     fun getInt(): Int =
-        42
+        0
 
     fun getData(id: Int, name: String): ExampleData =
         ExampleData(id, name)
 
     suspend fun getData(): ExampleData =
-        ExampleData(-1, "data")
+        client.get("url").body()
 }

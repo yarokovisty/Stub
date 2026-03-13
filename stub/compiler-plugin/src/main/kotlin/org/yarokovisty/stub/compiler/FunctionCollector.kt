@@ -21,18 +21,26 @@ object FunctionCollector {
             if (declaration is IrSimpleFunction && isOverridableFunction(declaration)) {
                 result.add(declaration)
             }
-            if (declaration is IrProperty) {
-                declaration.getter?.takeIf {
-                    it.visibility == DescriptorVisibilities.PUBLIC &&
-                        !it.isFakeOverride
-                }?.let(result::add)
-                declaration.setter?.takeIf {
-                    it.visibility == DescriptorVisibilities.PUBLIC &&
-                        !it.isFakeOverride
-                }?.let(result::add)
+            // Skip property accessors - they will be handled separately via collectOverridableProperties
+        }
+        return result
+    }
+
+    fun collectOverridableProperties(irClass: IrClass): List<IrProperty> {
+        val result = mutableListOf<IrProperty>()
+        for (declaration in irClass.declarations) {
+            if (declaration is IrProperty && isOverridableProperty(declaration)) {
+                result.add(declaration)
             }
         }
         return result
+    }
+
+    private fun isOverridableProperty(property: IrProperty): Boolean {
+        val getter = property.getter
+        return getter != null &&
+            getter.visibility == DescriptorVisibilities.PUBLIC &&
+            !getter.isFakeOverride
     }
 
     fun collectAbstractFunctions(irClass: IrClass): List<IrSimpleFunction> {
